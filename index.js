@@ -13,64 +13,83 @@ dotenv.config();
 console.log("Testing Weather Underground API");
 
 const server = http.createServer((req, res) => {
+
+	req.on("error", (error) => {
+		console.error(error);
+	});
+
 	// respond to GET 
 	if(req.method === "GET") {
 		
 		const urlObj = url.parse(req.url, true);
 
-		if (urlObj.pathname === "/api/forecast") {
-			if("link" in urlObj.query) {
-				res.writeHead(200, {"Content-Type": "application/json"});
-				let forecast = getForecast(urlObj.query.link);
-				//console.log(forecast);
-				res.write(JSON.stringify(forecast));
-			} //else return HTML error code
-		} else if (urlObj.pathname === "/api/city") {
-			//console.log("citysearch!");
-			let cityResults = getCities(urlObj.query.search);
-			//console.log("Got cities!");
+		// Forecast request
+		if (urlObj.pathname === "/api/forecast" && "link" in urlObj.query) {
 			res.writeHead(200, {"Content-Type": "application/json"});
-			//console.log(JSON.stringify(cityResults));
-			res.write(JSON.stringify(cityResults, null, '\t'));
-		} // else return HTML error code 
-		res.end();
-	} // return HTTP error code
+
+			getForecast(urlObj.query.link)
+				.then((data) => {
+					res.write(JSON.stringify(data));
+					res.end();
+				})
+				.catch((error) => {
+					console.error(error);
+				});				
+		}
+		else if (urlObj.pathname === "/api/city" && "search" in urlObj.query) {
+			res.writeHead(200, {"Content-Type": "application/json"});
+
+			getCities(urlObj.query.search)
+				.then((data) => {
+					return parseCityData(JSON.parse(data));
+				})
+				.then((data) => {
+					res.write(JSON.stringify(data));
+					res.end();
+				})
+				.catch((error) => {
+					console.error(error);
+				});
+		} else {
+			const d = new Date();
+			console.error("INVALID REQUEST\n" +
+				            "===============\n" +
+			              "HOST:       " + req.headers.host          + "\n" +
+			              "USER AGENT: " + req.headers["user-agent"] + "\n" +
+			              "TIME:       " + d.toString()              + "\n");
+			res.writeHead(400, {'Content-Type': 'text/plain'});
+			res.end("Invalid request, please try again.");
+		}
+	}
 });
 
 function getForecast(link) {
-	const url = "http://api.wunderground.com/api/" + process.env.API_KEY + 
-	            "/forecast" + link + ".json";
+	return new Promise((resolve, reject) => {
+		const url = "http://api.wunderground.com/api/" + process.env.API_KEY + 
+		            "/forecast" + link + ".json";
 
-	let results = {};
-
-	http.get(url, (res) => {
-		res.setEncoding("utf8");
-		res.pipe(concat((data) => {
-			results = JSON.parse(data);
-
-		}));
-		res.on("error", console.error);
-	}).on("error", console.error);
-
-	//console.log(JSON.stringify(results));
-
-	return results;
+		http.get(url, (res) => {
+			res.setEncoding("utf8");
+			res.pipe(concat((data) => {
+				resolve(JSON.parse(data));
+			}));
+			res.on("error", reject);
+		}).on("error", reject);
+	});
 }
 
 function getCities(search) {
-	const url = "http://autocomplete.wunderground.com/aq?query=" + encodeURIComponent(search);
-	let results = {};
+	return new Promise((resolve, reject) => {
+		const url = "http://autocomplete.wunderground.com/aq?query=" + encodeURIComponent(search);
 
-	http.get(url, (res) => {
-		res.setEncoding("utf8");
-		res.pipe(concat((data) => {
-			results = parseCityData(JSON.parse(data));
-			console.log(JSON.stringify(results));
-		}));
-		res.on("error", console.error);
-	}).on("error", console.error);
-
-	return results;
+		http.get(url, (res) => {
+			res.setEncoding("utf8");
+			res.pipe(concat((data) => {
+				resolve(data);
+			}));
+			res.on("error", reject);
+		}).on("error", reject);
+	});
 }
 
 function parseCityData(data) {
@@ -80,8 +99,6 @@ function parseCityData(data) {
 		cityList.push({name: city.name, link: city.l});
 	});
 
-	//console.log(JSON.stringify({cityList: cityList}));
-
 	return {cityList: cityList};
 }
 
@@ -90,10 +107,3 @@ function parseCityData(data) {
 // }
 
 server.listen(7979);
-
-// API call example
-// 
-// server/projects/weatherapp/api/getforecast/XX/YYYYYYYYY.json
-// 
-// XX = state (AK, NY, HI, MO, CA, IA, FL, etc.)
-// YYYYYYYYYY = City with underscores (i.e. San_Francisco)
