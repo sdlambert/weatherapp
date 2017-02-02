@@ -58,7 +58,7 @@ const server = http.createServer((req, res) => {
 			              "USER AGENT: " + req.headers["user-agent"] + "\n" +
 			              "TIME:       " + d.toString()              + "\n" +
 			              "PATH:       " + urlObj.pathname           + "\n" + 
-			              "QUERY:      " + urlObj.query              + "\n");
+			              "QUERY:      " + urlObj.search  + "\n");
 			res.writeHead(400, {'Content-Type': 'text/plain'});
 			res.end("Invalid request, please try again.");
 		}
