@@ -56,7 +56,9 @@ const server = http.createServer((req, res) => {
 				            "===============\n" +
 			              "HOST:       " + req.headers.host          + "\n" +
 			              "USER AGENT: " + req.headers["user-agent"] + "\n" +
-			              "TIME:       " + d.toString()              + "\n");
+			              "TIME:       " + d.toString()              + "\n" +
+			              "PATH:       " + urlObj.pathname           + "\n" + 
+			              "QUERY:      " + urlObj.query              + "\n");
 			res.writeHead(400, {'Content-Type': 'text/plain'});
 			res.end("Invalid request, please try again.");
 		}
@@ -107,5 +109,3 @@ function parseCityData(data) {
 // }
 
 server.listen(7979);
-
-// Adding hook for remote
