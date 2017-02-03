@@ -2,3 +2,4 @@
 node_modules/
 front/
 *.sublime*
+sample_forecast.json

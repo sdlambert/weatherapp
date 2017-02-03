@@ -1,7 +1,17 @@
-// WeatherApp v0.0.1
+// WeatherApp v0.3.0
 // =================
-// Simple API to grab and parse weather data on request 
-// and secure the key
+// Simple REST API to return city autocomplete and weather data 
+// from the Weather Underground API: 
+// https://www.wunderground.com/weather/api/d/docs
+// 
+// Usage:
+//
+//   City Autocomplete
+//   /api/city?search=[STRING]
+//
+//   Forecast 
+//   /api/forecast?link=[LINK]
+
 
 const http   = require('http');
 const dotenv = require('dotenv');
@@ -28,8 +38,9 @@ const server = http.createServer((req, res) => {
 			res.writeHead(200, {"Content-Type": "application/json"});
 
 			getForecast(urlObj.query.link)
+				.then((data) => parseForecastData(data))
 				.then((data) => {
-					res.write(JSON.stringify(data));
+					res.write(JSON.stringify(data, null, "\t"));
 					res.end();
 				})
 				.catch((error) => {
@@ -41,7 +52,7 @@ const server = http.createServer((req, res) => {
 
 			getCities(urlObj.query.search)
 				.then((data) => {
-					return parseCityData(JSON.parse(data));
+					return parseCityData(data);
 				})
 				.then((data) => {
 					res.write(JSON.stringify(data));
@@ -87,13 +98,20 @@ function getCities(search) {
 		http.get(url, (res) => {
 			res.setEncoding("utf8");
 			res.pipe(concat((data) => {
-				resolve(data);
+				resolve(JSON.parse(data));
 			}));
 			res.on("error", reject);
 		}).on("error", reject);
 	});
 }
 
+
+/**
+ * parseCityData(data)
+ *   returns a list of city names with corresponding links
+ * @param  {Object} data - Weather Underground AutoComplete data
+ * @return {Object}      - list of cities and links
+ */
 function parseCityData(data) {
 	let cityList = [];
 
@@ -104,8 +122,28 @@ function parseCityData(data) {
 	return {cityList: cityList};
 }
 
-// function parseForecastData(data) {
 
-// }
+/**
+ * parseForecastData(data)
+ *   returns relevant forecast data
+ * @param  {Object} data - Weather Underground Forecast data
+ * @return {Object}      - relevant forecast data
+ */
+function parseForecastData(data) {
+	const daysArr = data.forecast.simpleforecast.forecastday;
+	let forecast = {};
+
+	forecast.days = daysArr.map((day) => {
+		return {
+			day:        day.date.weekday_short,
+			month:      day.date.monthname_short,
+			conditions: day.conditions,
+			high:       day.high.fahrenheit,
+			low:        day.low.fahrenheit
+		};
+	});
+
+	return forecast;
+}
 
 server.listen(7979);
